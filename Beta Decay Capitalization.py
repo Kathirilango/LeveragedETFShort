@@ -5,7 +5,7 @@ def initialize(context):
     context.bear=symbol('jdst')
     context.lever=context.account.leverage
     #insert intended leverage below
-    context.truleverage=4
+    context.truleverage=1
     #insert max imbalance below
     context.trupos_spread=5
     
