@@ -4,8 +4,8 @@ def initialize(context):
     context.bull=symbol('jnug')
     context.bear=symbol('jdst')
     context.lever=context.account.leverage
-    #insert commission below
-    set_commission(commission.PerTrade(cost=5))
+    #insert interactive brokers commission below
+    set_commission(commission.PerShare(cost=0.0035, min_trade_cost=0.35))
     #insert intended leverage below
     context.truleverage=1
     #insert max imbalance below
@@ -14,8 +14,8 @@ def initialize(context):
     schedule_function(record_vars,date_rules.every_day(),time_rules.market_close(hours=0,minutes=1),half_days=True)
     
 def record_vars(context,data): 
-    record(imbalance=context.pos_spread)
-    #record(leverage=context.lever)
+    #record(imbalance=context.pos_spread)
+    record(leverage=context.account.leverage)
     
 def allocate(context,data):
     bet_size = context.portfolio.portfolio_value * (context.truleverage-0.2)
