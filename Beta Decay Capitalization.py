@@ -11,13 +11,20 @@ def initialize(context):
     #insert max imbalance below
     context.trupos_spread=10
     context.x=True
-    schedule_function(record_vars,date_rules.every_day(),time_rules.market_close(hours=0,minutes=1),half_days=True)
+    context.open_orders = get_open_orders()  
+    schedule_function(EOD,date_rules.every_day(),time_rules.market_close(hours=0,minutes=1),half_days=True)
     
-def record_vars(context,data): 
-    #record(imbalance=context.pos_spread)
+def EOD(context,data): 
+    record(imbalance=context.pos_spread)
     record(leverage=context.account.leverage)
+    for equity in context.portfolio.positions:  
+        order_percent(equity, 0)
+    context.x=True
     
 def allocate(context,data):
+    if context.open_orders:
+        for orders in context.open_orders.iteritems():
+            cancel_order(orders)
     bet_size = context.portfolio.portfolio_value * (context.truleverage-0.2)
     context.bull_trade_amt=-((0.5*bet_size)/(data.current(context.bull,'price')))-context.portfolio.positions[context.bull].amount
     context.bear_trade_amt=-((0.5*bet_size)/(data.current(context.bear,'price')))-context.portfolio.positions[context.bear].amount
