@@ -3,16 +3,15 @@ from quantopian.pipeline import Pipeline,CustomFactor
 def initialize(context):
     context.bull=symbol('nugt')
     context.bear=symbol('dust')
-    context.lever=context.account.leverage
     #insert interactive brokers commission below
     set_commission(commission.PerShare(cost=0.0035, min_trade_cost=0.35))
     #insert intended leverage below
-    context.truleverage=1
+    context.truleverage=4
     #insert max imbalance below
     context.trupos_spread=10
     context.open_orders = get_open_orders()  
     context.time=get_datetime('US/Eastern').hour
-    schedule_function(EOD,date_rules.every_day(),time_rules.market_close(hours=0,minutes=2),half_days=True)
+    schedule_function(EOD,date_rules.every_day(),time_rules.market_close(hours=0,minutes=1),half_days=True)
     
 def EOD(context,data): 
     record(imbalance=context.pos_spread)
@@ -35,8 +34,10 @@ def handle_data(context,data):
         bull_perc=abs((context.portfolio.positions[context.bull].amount*(data.current(context.bull,'price')))/(context.portfolio.portfolio_value))*100
         bear_perc=abs((context.portfolio.positions[context.bear].amount*(data.current(context.bear,'price')))/(context.portfolio.portfolio_value))*100
         context.pos_spread=abs(bull_perc-bear_perc)
-    if context.lever>context.truleverage:
-            log.warn('Leverage Exceeded: '+str(context.lever))
+    if context.account.leverage>context.truleverage:
+            log.warn('Leverage Exceeded: '+str(context.account.leverage))
+            for equity in context.portfolio.positions:  
+                order_percent(equity, 0)
     if len(context.portfolio.positions)==0 and context.time!=15:
         allocate(context,data)
     try:
