@@ -4,7 +4,7 @@ import numpy as np
 def initialize(context):
     context.bull=symbol('jnug')
     context.bear=symbol('jdst')
-    context.underlying=symbol('GDXJ')
+    context.underlying=symbol('gdxj')
     context.lever=context.account.leverage
     #insert interactive brokers commission below
     set_commission(commission.PerShare(cost=0.0035, min_trade_cost=0.35))
@@ -29,11 +29,11 @@ def EOD(context,data):
     for equity in context.portfolio.positions:  
         order_percent(equity, 0)
     context.x=True
-    price_history = data.history(context.underlying,"price",30,"1d")
+    price_history = data.history(context.underlying,"price",23400,"1m")
     compute_volatility(context,price_history)
     r_value=np.corrcoef(context.volatility,context.performance)
-    corr=r_value[0][1]
-    record(corr=corr)
+    corr=(r_value[0][1])**2
+    #record(corr=corr)
     #print(corr)
 
 def compute_volatility(context,price_history):  
@@ -44,7 +44,7 @@ def compute_volatility(context,price_history):
     returns = context.portfolio.returns
     context.performance.append(returns)
     context.volatility.append(historical_vol_daily)
-    record(volatility=historical_vol_daily*10)    
+    record(volatility=historical_vol_daily*1000)    
     
 def allocate(context,data):
     if context.open_orders:
