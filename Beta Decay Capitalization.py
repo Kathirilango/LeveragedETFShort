@@ -16,9 +16,11 @@ def initialize(context):
     context.x=True
     context.open_orders = get_open_orders()  
     context.exchange_time = get_datetime('US/Eastern')
-    context.performance=[]
+    #context.performance=[]
     context.volatility=[]
     schedule_function(EOD,date_rules.every_day(),time_rules.market_close(hours=0,minutes=1),half_days=True)
+    #run at the end of every 30 days
+    schedule_function(EOQ,date_rules.every_day(),time_rules.market_close(hours=0,minutes=1),half_days=True)
     
 def EOD(context,data): 
     #record(imbalance=context.pos_spread)
@@ -29,22 +31,24 @@ def EOD(context,data):
     for equity in context.portfolio.positions:  
         order_percent(equity, 0)
     context.x=True
-    price_history = data.history(context.underlying,"price",23400,"1m")
-    compute_volatility(context,price_history)
-    r_value=np.corrcoef(context.volatility,context.performance)
-    corr=(r_value[0][1])**2
+    #r_value=np.corrcoef(context.volatility,context.performance)
+    #corr=(r_value[0][1])**2
     #record(corr=corr)
     #print(corr)
+    
+def EOQ(context,data):
+    price_history = data.history(context.underlying,"price",23400,"1m")
+    compute_volatility(context,price_history)
 
 def compute_volatility(context,price_history):  
     # Compute daily returns  
     daily_returns = price_history.pct_change().dropna().values  
     # Compute daily volatility  
     historical_vol_daily = np.std(daily_returns,axis=0)
-    returns = context.portfolio.returns
-    context.performance.append(returns)
+    #returns = context.portfolio.returns
+    #context.performance.append(returns)
     context.volatility.append(historical_vol_daily)
-    record(volatility=historical_vol_daily*1000)    
+    #record(volatility=historical_vol_daily*1000)    
     
 def allocate(context,data):
     if context.open_orders:
