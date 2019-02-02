@@ -4,7 +4,7 @@ import numpy as np
 def initialize(context):
     context.bull=symbol('jnug')
     context.bear=symbol('jdst')
-    context.underlying=symbol('gdxj')
+    #context.underlying=symbol('gdxj')
     context.lever=context.account.leverage
     #insert interactive brokers commission below
     set_commission(commission.PerShare(cost=0.0035, min_trade_cost=0.35))
@@ -17,14 +17,14 @@ def initialize(context):
     context.open_orders = get_open_orders()  
     context.exchange_time = get_datetime('US/Eastern')
     #context.performance=[]
-    context.volatility=[]
-    schedule_function(EOD,date_rules.every_day(),time_rules.market_close(hours=0,minutes=1),half_days=True)
+    #context.volatility=[]
+    schedule_function(EOD,date_rules.every_day(),time_rules.market_close(hours=0,minutes=3),half_days=True)
     #run at the end of every 30 days
-    schedule_function(EOQ,date_rules.every_day(),time_rules.market_close(hours=0,minutes=1),half_days=True)
+    #schedule_function(EOQ,date_rules.every_day(),time_rules.market_close(hours=0,minutes=1),half_days=True)
     
 def EOD(context,data): 
     #record(imbalance=context.pos_spread)
-    #record(leverage=context.account.leverage)
+    record(leverage=context.account.leverage)
     if context.open_orders:
         for orders in context.open_orders.iteritemts():
             cancel_order(orders)
@@ -36,19 +36,19 @@ def EOD(context,data):
     #record(corr=corr)
     #print(corr)
     
-def EOQ(context,data):
-    price_history = data.history(context.underlying,"price",23400,"1m")
-    compute_volatility(context,price_history)
+# def EOQ(context,data):
+#     price_history = data.history(context.underlying,"price",23400,"1m")
+#     compute_volatility(context,price_history)
 
-def compute_volatility(context,price_history):  
-    # Compute daily returns  
-    daily_returns = price_history.pct_change().dropna().values  
-    # Compute daily volatility  
-    historical_vol_daily = np.std(daily_returns,axis=0)
-    #returns = context.portfolio.returns
-    #context.performance.append(returns)
-    context.volatility.append(historical_vol_daily)
-    #record(volatility=historical_vol_daily*1000)    
+# def compute_volatility(context,price_history):  
+#     # Compute daily returns  
+#     daily_returns = price_history.pct_change().dropna().values  
+#     # Compute daily volatility  
+#     historical_vol_daily = np.std(daily_returns,axis=0)
+#     #returns = context.portfolio.returns
+#     #context.performance.append(returns)
+#     context.volatility.append(historical_vol_daily)
+#     #record(volatility=historical_vol_daily*1000)    
     
 def allocate(context,data):
     if context.open_orders:
@@ -71,7 +71,7 @@ def handle_data(context,data):
             for equity in context.portfolio.positions:  
                  order_percent(equity, 0)
             context.x=True
-    if context.x==True:
+    if context.x==True and context.exchange_time.minute<57:
         allocate(context,data)
     try:
         if context.pos_spread>context.trupos_spread:
