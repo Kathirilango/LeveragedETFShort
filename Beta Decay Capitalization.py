@@ -5,15 +5,15 @@ def initialize(context):
     context.bull=symbol('jnug')
     context.bear=symbol('jdst')
     #context.underlying=symbol('gdxj')
-    context.securities = [
-        {'underlying': symbol('GDXJ'),    'bull':symbol('JNUG'), 'bear':symbol('JDST')},
-        {'underlying': symbol('FCG'),     'bull':symbol('GASL'), 'bear':symbol('GASX')},
-        {'underlying': symbol('XBI'),     'bull':symbol('LABU'), 'bear':symbol('LABD')},
-        {'underlying': symbol('SOXX'),    'bull':symbol('SOXL'), 'bear':symbol('SOXS')},
-        {'underlying': symbol('XOP'),     'bull':symbol('GUSH'), 'bear':symbol('DRIP')},
-        #{'underlying': symbol('R1RGSFS'), 'bull':symbol('FAS'),  'bear':symbol('FAZ')},
-        #{'underlying': symbol('IXT'), 'bull':symbol('TECL'),  'bear':symbol('TECS')}
-    ]
+    context.securities = {
+        symbol('GDXJ'): {'bull':symbol('JNUG'), 'bear':symbol('JDST')},
+        symbol('FCG'):  {'bull':symbol('GASL'), 'bear':symbol('GASX')},
+        symbol('XBI'):  {'bull':symbol('LABU'), 'bear':symbol('LABD')},
+        symbol('SOXX'): {'bull':symbol('SOXL'), 'bear':symbol('SOXS')},
+        symbol('XOP'):  {'bull':symbol('GUSH'), 'bear':symbol('DRIP')},
+        #symbol('R1RGSFS'): {'bull':symbol('FAS'),  'bear':symbol('FAZ')},
+        #symbol('IXT'): {'bull':symbol('TECL'),  'bear':symbol('TECS')}
+    }
     context.lever=context.account.leverage
     #insert interactive brokers commission below
     set_commission(commission.PerShare(cost=0.0035, min_trade_cost=0.35))
@@ -65,9 +65,9 @@ def EOQ(context,data):
     this_month = get_datetime('US/Eastern').month  
     if this_month in [3, 6, 9, 12]: 
         for security in context.securities:
-            price_history = data.history(security['underlying'],"price",23400,"1m")
+            price_history = data.history(security,"price",23400,"1m")
             rolling_vol = compute_volatility(context,price_history)
-            context.rolling_volatility[security['underlying']] = rolling_vol
+            context.rolling_volatility[security] = rolling_vol
         context.rolling_volatility = sorted(context.rolling_volatility.items(), key=operator.itemgetter(1), reverse=True)
         #print(context.rolling_volatility)
     else:
