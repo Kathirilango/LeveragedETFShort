@@ -5,6 +5,15 @@ def initialize(context):
     context.bull=symbol('jnug')
     context.bear=symbol('jdst')
     #context.underlying=symbol('gdxj')
+    context.securities = {
+        symbol('GDXJ'): {'bull':symbol('JNUG'), 'bear':symbol('JDST')},
+        symbol('FCG'):  {'bull':symbol('GASL'), 'bear':symbol('GASX')},
+        symbol('XBI'):  {'bull':symbol('LABU'), 'bear':symbol('LABD')},
+        symbol('SOXX'): {'bull':symbol('SOXL'), 'bear':symbol('SOXS')},
+        symbol('XOP'):  {'bull':symbol('GUSH'), 'bear':symbol('DRIP')},
+        #symbol('R1RGSFS'): {'bull':symbol('FAS'),  'bear':symbol('FAZ')},
+        #symbol('IXT'): {'bull':symbol('TECL'),  'bear':symbol('TECS')}
+    }
     context.lever=context.account.leverage
     #insert interactive brokers commission below
     set_commission(commission.PerShare(cost=0.0035, min_trade_cost=0.35))
@@ -21,6 +30,7 @@ def initialize(context):
     schedule_function(EOD,date_rules.every_day(),time_rules.market_close(hours=0,minutes=3),half_days=True)
     #run at the end of every 30 days
     #schedule_function(EOQ,date_rules.every_day(),time_rules.market_close(hours=0,minutes=1),half_days=True)
+    schedule_function(EOQ,date_rules.month_end(),time_rules.market_close(minutes=30),half_days=True)
     
 def EOD(context,data): 
     #record(imbalance=context.pos_spread)
@@ -49,6 +59,30 @@ def EOD(context,data):
 #     #context.performance.append(returns)
 #     context.volatility.append(historical_vol_daily)
 #     #record(volatility=historical_vol_daily*1000)    
+
+def EOQ(context,data):
+    context.rolling_volatility={}
+    this_month = get_datetime('US/Eastern').month  
+    if this_month in [3, 6, 9, 12]: 
+        for security in context.securities:
+            price_history = data.history(security,"price",23400,"1m")
+            rolling_vol = compute_volatility(context,price_history)
+            context.rolling_volatility[security] = rolling_vol
+        context.rolling_volatility = sorted(context.rolling_volatility.items(), key=operator.itemgetter(1), reverse=True)
+        #print(context.rolling_volatility)
+    else:
+        return
+
+def compute_volatility(context,price_history):  
+    # Compute daily returns  
+    daily_returns = price_history.pct_change().dropna().values  
+    # Compute daily volatility  
+    historical_vol_daily = np.std(daily_returns,axis=0)
+    #returns = context.portfolio.returns
+    #context.performance.append(returns)
+    #context.volatility.append(historical_vol_daily)
+    #record(volatility=historical_vol_daily*1000)  
+    return historical_vol_daily
     
 def allocate(context,data):
     if context.open_orders:
