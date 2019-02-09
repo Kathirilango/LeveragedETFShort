@@ -61,17 +61,25 @@ def EOD(context,data):
 #     #record(volatility=historical_vol_daily*1000)    
 
 def EOQ(context,data):
-    context.rolling_volatility={}
-    this_month = get_datetime('US/Eastern').month  
-    if this_month in [3, 6, 9, 12]: 
-        for security in context.securities:
-            price_history = data.history(security,"price",23400,"1m")
-            rolling_vol = compute_volatility(context,price_history)
-            context.rolling_volatility[security] = rolling_vol
+    context.rolling_volatility={}   
+    for security in context.securities:
+        price_history = data.history(security,"price",7800,"1m")
+        rolling_vol = compute_volatility(context,price_history)
+        context.rolling_volatility[security] = rolling_vol
         context.rolling_volatility = sorted(context.rolling_volatility.items(), key=operator.itemgetter(1), reverse=True)
-        #print(context.rolling_volatility)
-    else:
-        return
+        context.rolling_volatility = dict(context.rolling_volatility)
+    #print(context.rolling_volatility)
+
+    rv_sum = 0
+    for _,rv in context.rolling_volatility.items():
+        rv_sum += rv
+    for underlying, rv in context.rolling_volatility.items():
+        raw_pct = 100 * (rv/rv_sum)
+        order_pct = raw_pct * (context.truleverage-0.2) / 2
+        order_percent(context.securities[underlying]['bull'], order_pct)
+        order_percent(context.securities[underlying]['bear'], order_pct)
+
+    #print(context.portfolio.positions)
 
 def compute_volatility(context,price_history):  
     # Compute daily returns  
