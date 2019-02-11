@@ -1,5 +1,6 @@
 from quantopian.pipeline import Pipeline,CustomFactor
 import numpy as np
+import operator
         
 def initialize(context):
     context.bull=symbol('jnug')
