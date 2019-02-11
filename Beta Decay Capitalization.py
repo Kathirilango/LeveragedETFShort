@@ -91,12 +91,19 @@ def compute_volatility(context,price_history):
     #context.volatility.append(historical_vol_daily)
     #record(volatility=historical_vol_daily*1000)  
     return historical_vol_daily
+
+def get_pair_value(context, data):
+    bull_value = context.portfolio.positions[context.bull].amount*data.current(context.bull,'price')
+    bear_value = context.portfolio.positions[context.bear].amount*data.current(context.bear,'price')
+    return (bull_value+bear_value)
     
 def allocate(context,data):
     if context.open_orders:
         for orders in context.open_orders.iteritemts():
             cancel_order(orders)
-    bet_size = context.portfolio.portfolio_value * (context.truleverage-0.2)
+ 
+    pair_value = get_pair_value(context, data)
+    bet_size = pair_value * (context.truleverage-0.2)
     context.bull_trade_amt=-((0.5*bet_size)/(data.current(context.bull,'price')))-context.portfolio.positions[context.bull].amount
     context.bear_trade_amt=-((0.5*bet_size)/(data.current(context.bear,'price')))-context.portfolio.positions[context.bear].amount
     order(context.bull,context.bull_trade_amt)
@@ -105,18 +112,22 @@ def allocate(context,data):
         
 def handle_data(context,data):
     if len(context.portfolio.positions) > 0:
-        bull_perc=abs((context.portfolio.positions[context.bull].amount*(data.current(context.bull,'price')))/(context.portfolio.portfolio_value))*100
-        bear_perc=abs((context.portfolio.positions[context.bear].amount*(data.current(context.bear,'price')))/(context.portfolio.portfolio_value))*100
-        context.pos_spread=abs(bull_perc-bear_perc)
+        for security in context.securities:
+            context.bull = context.securities[security]['bull']
+            context.bear = context.securities[security]['bear']
+            pair_value = get_pair_value(context, data)
+            
+            bull_perc=abs((context.portfolio.positions[context.bull].amount*(data.current(context.bull,'price')))/pair_value)*100
+            bear_perc=abs((context.portfolio.positions[context.bear].amount*(data.current(context.bear,'price')))/pair_value)*100
+            context.pos_spread=abs(bull_perc-bear_perc)
+            
+            if context.pos_spread>context.trupos_spread:
+                allocate(context, data)
+       
     if context.lever>context.truleverage:
             log.warn('Leverage Exceeded: '+str(context.lever))
-            for equity in context.portfolio.positions:  
+            for equity in context.portfolio.positions:
                  order_percent(equity, 0)
-            context.x=True
-    if context.x==True and context.exchange_time.minute<57:
-        allocate(context,data)
-    try:
-        if context.pos_spread>context.trupos_spread:
-            allocate(context,data)
-    except:
-        pass
+            context.empty=True
+    if context.empty==True:
+        EOQ(context,data)
