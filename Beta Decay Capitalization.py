@@ -129,5 +129,5 @@ def handle_data(context,data):
             for equity in context.portfolio.positions:
                  order_percent(equity, 0)
             context.empty=True
-    if context.empty==True:
+    if context.empty==True and context.exchange_time.minute<57:
         EOQ(context,data)
