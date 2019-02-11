@@ -22,7 +22,7 @@ def initialize(context):
     context.truleverage=1
     #insert max imbalance below
     context.trupos_spread=10
-    context.x=True
+    context.empty=True
     context.open_orders = get_open_orders()  
     context.exchange_time = get_datetime('US/Eastern')
     #context.performance=[]
@@ -40,7 +40,7 @@ def EOD(context,data):
             cancel_order(orders)
     for equity in context.portfolio.positions:  
         order_percent(equity, 0)
-    context.x=True
+    context.empty=True
     #r_value=np.corrcoef(context.volatility,context.performance)
     #corr=(r_value[0][1])**2
     #record(corr=corr)
@@ -108,7 +108,7 @@ def allocate(context,data):
     context.bear_trade_amt=-((0.5*bet_size)/(data.current(context.bear,'price')))-context.portfolio.positions[context.bear].amount
     order(context.bull,context.bull_trade_amt)
     order(context.bear,context.bear_trade_amt)
-    context.x=False
+    context.empty=False
         
 def handle_data(context,data):
     if len(context.portfolio.positions) > 0:
