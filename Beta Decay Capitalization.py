@@ -31,19 +31,20 @@ def initialize(context):
         symbol('SPY'):  {'bull':symbol('SPXL'), 'bear':symbol('SPXS')},
         #symbol('IWM'):  {'bull':symbol('TNA'),  'bear':symbol('TNZ')}
     }
-    
+        
     context.is_security = {symbol('GDXJ'): False, symbol('XBI'): False, symbol('XSD'): False, symbol('XOP'): False, symbol('XLE'): False, symbol('XLF'): False, symbol('GDX'): False, symbol('XLRE'): False, symbol('XLK'): False, symbol('TYBS'): False, symbol('TYNS'): False, symbol('FXI'): False, symbol('EFA'): False, symbol('EEM'): False, symbol('ERUS'): False, symbol('IJH'): False, symbol('SPY'): False}
     
     #insert interactive brokers commission below
     set_commission(commission.PerShare(cost=0.0035, min_trade_cost=0.35))
     set_slippage(slippage.FixedSlippage(spread=0.00))
     #insert intended leverage below
-    context.truleverage=1
+    context.truleverage=3
     #insert max imbalance below
     context.trupos_spread=10
     context.empty=True
     context.universe_size = 17
     context.num_securities = 5
+    context.min_volatility = 0
     schedule_function(EOD,date_rules.every_day(),time_rules.market_close(hours=0,minutes=3),half_days=True) 
     schedule_function(select_securities, date_rules.every_day(), time_rules.market_open(hours=0, minutes=1))
     
@@ -62,37 +63,54 @@ def EOD(context,data):
     #record(corr=corr)
     #print(corr)
     
+def warn_leverage(context, data):
+    log.warn('Leverage Exceeded: '+str(context.account.leverage))
+    context.open_orders = get_open_orders()
+    if context.open_orders:
+        for orders,_ in context.open_orders.iteritems():
+            cancel_order(orders)
+    for equity in context.portfolio.positions:  
+        order_target_percent(equity, 0)
+    context.empty = True    
+    
 def select_securities(context, data):
+    
     context.rolling_volatility={}   
     for security in context.universe:
-        price_history = data.history(security,"price",7800,"1m")
+        price_history = data.history(security,"price",40,"1d")
         rolling_vol = compute_volatility(context,price_history)
         context.rolling_volatility[security] = rolling_vol
-    #context.rolling_volatility = OrderedDict(sorted(context.rolling_volatility.items(), key=operator.itemgetter(1), reverse = True))
+        
     context.rolling_volatility = OrderedDict(sorted(context.rolling_volatility.items(), key=lambda kv: kv[1], reverse=True))
     print(context.rolling_volatility)
-    #print(context.rolling_volatility.keys())
     
     context.securities = {}
+    below_limit = 0
     for i in range(context.num_securities):
         underlying = context.rolling_volatility.keys()[i]
+        if (context.rolling_volatility[underlying] < context.min_volatility):
+            below_limit += 1
+            continue
+        
         bull = context.universe[underlying]['bull']
         bear = context.universe[underlying]['bear']
+        
         context.securities[underlying] = {}
         context.securities[underlying]['bull'] = bull
         context.securities[underlying]['bear'] = bear
         context.is_security[underlying] = True
-    for i in range (context.num_securities, context.universe_size):
+    
+    for i in range (context.num_securities-below_limit, context.universe_size):
         underlying = context.rolling_volatility.keys()[i]
         if (context.is_security[underlying]):
             order_target_percent(context.universe[underlying]['bull'], 0)
             order_target_percent(context.universe[underlying]['bear'], 0)
             context.is_security[underlying] = False
+            
     print( context.securities)
     context.rolling_volatility = dict(context.rolling_volatility)
     
 def EOQ(context,data):
-    
     #print (context.rolling_volatility)
     context.rv_sum = 0
     for security in context.securities:
@@ -132,11 +150,20 @@ def allocate(context,data):
     print(str(context.bear) + " TA: " + str(bear_trade_amt)+ " at " + str(data.current(context.bear,'price')) + " per share, currently have " + str(context.portfolio.positions[context.bear].amount) + " shares")
     
     if (is_pair_tradable(context, data)):
-        order(context.bull,bull_trade_amt)
-        order(context.bear,bear_trade_amt)
-        context.empty=False
+        bull_below_limit = bull_trade_amt*data.current(context.bull,'price') < (0.5*context.truleverage*context.portfolio.portfolio_value)
+        bear_below_limit = bear_trade_amt*data.current(context.bear,'price') < (0.5*context.truleverage*context.portfolio.portfolio_value)
+        if (bull_below_limit and bear_below_limit):
+            order(context.bull,bull_trade_amt)
+            order(context.bear,bear_trade_amt)
+            context.empty=False
+        else:
+            warn_leverage(context, data)
         
 def handle_data(context,data):
+    
+    context.open_orders = get_open_orders()
+    if context.open_orders:
+        return
     
     if context.empty==False:
         for security in context.securities.keys():
@@ -153,16 +180,9 @@ def handle_data(context,data):
                 print ("ALLOCATING SPREAD")
                 allocate(context, data)       
     if context.account.leverage>context.truleverage or context.account.leverage < 0:
-        log.warn('Leverage Exceeded: '+str(context.account.leverage))
-        context.open_orders = get_open_orders()
-        if context.open_orders:
-            for orders,_ in context.open_orders.iteritems():
-                cancel_order(orders)
-        for equity in context.portfolio.positions:  
-            order_target_percent(equity, 0)
-        context.empty = True    
+        warn_leverage(context, data)
         
     context.exchange_time = get_datetime('US/Eastern')
     if context.empty==True and not (context.exchange_time.hour == 15 and context.exchange_time.minute > 57) and not context.exchange_time.hour == 16 and not (context.exchange_time.hour == 9 and context.exchange_time.minute < 32):
-        print("ALLOCATING EOQ")
+        #print("ALLOCATING EOQ")
         EOQ(context,data)
