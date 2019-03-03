@@ -9,9 +9,9 @@ def initialize(context):
     context.underlying = ""
     context.universe = {
         symbol('GDXJ'): {'bull':symbol('JNUG'), 'bear':symbol('JDST')},
-        #symbol('FCG'):  {'bull':symbol('GASL'), 'bear':symbol('GASX')},
+        symbol('FCG'):  {'bull':symbol('GASL'), 'bear':symbol('GASX')},
         symbol('XBI'):  {'bull':symbol('LABU'), 'bear':symbol('LABD')},
-        symbol('XSD'):  {'bull':symbol('SOXL'), 'bear':symbol('SOXS')},
+        #symbol('XSD'):  {'bull':symbol('SOXL'), 'bear':symbol('SOXS')},
         symbol('XOP'):  {'bull':symbol('GUSH'), 'bear':symbol('DRIP')},
         #symbol('XLC'):  {'bull':symbol('TAWK'), 'bear':symbol('MUTE')},
         #symbol('XLY'):  {'bull':symbol('WANT'), 'bear':symbol('PASS')},
@@ -32,7 +32,7 @@ def initialize(context):
         #symbol('IWM'):  {'bull':symbol('TNA'),  'bear':symbol('TNZ')}
     }
         
-    context.is_security = {symbol('GDXJ'): False, symbol('XBI'): False, symbol('XSD'): False, symbol('XOP'): False, symbol('XLE'): False, symbol('XLF'): False, symbol('GDX'): False, symbol('XLRE'): False, symbol('XLK'): False, symbol('TYBS'): False, symbol('TYNS'): False, symbol('FXI'): False, symbol('EFA'): False, symbol('EEM'): False, symbol('ERUS'): False, symbol('IJH'): False, symbol('SPY'): False}
+    context.is_security = {symbol('GDXJ'): False, symbol('FCG'): False, symbol('XBI'): False, symbol('XSD'): False, symbol('XOP'): False, symbol('XLE'): False, symbol('XLF'): False, symbol('GDX'): False, symbol('XLRE'): False, symbol('XLK'): False, symbol('TYBS'): False, symbol('TYNS'): False, symbol('FXI'): False, symbol('EFA'): False, symbol('EEM'): False, symbol('ERUS'): False, symbol('IJH'): False, symbol('SPY'): False}
     
     #insert interactive brokers commission below
     set_commission(commission.PerShare(cost=0.0035, min_trade_cost=0.35))
@@ -42,8 +42,8 @@ def initialize(context):
     #insert max imbalance below
     context.trupos_spread=10
     context.empty=True
-    context.universe_size = 17
-    context.num_securities = 5
+    context.universe_size = len(context.universe)
+    context.num_securities = 2
     context.min_volatility = 0
     schedule_function(EOD,date_rules.every_day(),time_rules.market_close(hours=0,minutes=3),half_days=True) 
     schedule_function(select_securities, date_rules.every_day(), time_rules.market_open(hours=0, minutes=1))
@@ -77,7 +77,7 @@ def select_securities(context, data):
     
     context.rolling_volatility={}   
     for security in context.universe:
-        price_history = data.history(security,"price",40,"1d")
+        price_history = data.history(security,"price",20,"1d")
         rolling_vol = compute_volatility(context,price_history)
         context.rolling_volatility[security] = rolling_vol
         
